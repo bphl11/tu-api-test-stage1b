@@ -9,10 +9,10 @@ const TU_CONFIG = {
     GOOGLE_CLIENT_ID:
         "443412026871-pqoa9tskrfkaffp5u2ohjhtq1l0ds2r1.apps.googleusercontent.com",
 
-    // KHUSUS TESTING — menggunakan deployment /dev.
+    // KHUSUS TESTING — melalui proxy TU terpisah.
     // Jangan digunakan sebagai URL produksi.
     TU_API_URL:
-        "https://script.google.com/macros/s/AKfycbzKYuVKhAna1TQNkhp-f9XRYYx9E34nLBkPlfIchVb2/dev",
+        "https://tu-p3hpl-proxy.asterales-niza.workers.dev/tu",
 
     APP_NAME: "TU BPHL XI Banjarbaru",
 
