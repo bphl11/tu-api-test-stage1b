@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TU API TEST — Stage 1C</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#202938}
+.wrap{max-width:1100px;margin:30px auto;padding:0 18px}
+.card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:24px;box-shadow:0 4px 18px rgba(0,0,0,.05);margin-bottom:18px}
+h1{margin:0 0 8px;font-size:28px}.muted{color:#667085}
+.badge{display:inline-block;padding:7px 11px;border-radius:999px;font-size:13px;font-weight:700;background:#eef2f6}
+.badge.ok{background:#dcfce7;color:#166534}.badge.wait{background:#fef3c7;color:#92400e}.badge.bad{background:#fee2e2;color:#991b1b}
+.login-box{border:2px dashed #c7d2fe;border-radius:12px;padding:22px;margin-top:18px;background:#f8faff}
+.login-title{font-weight:700;margin-bottom:8px;font-size:18px}
+#googleSignInButton{min-height:48px;display:flex;align-items:center}
+#loginMessage{margin-top:12px;padding:10px 12px;border-radius:8px;display:none}
+#loginMessage.info{display:block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+#loginMessage.success{display:block;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}
+#loginMessage.error{display:block;background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+#loginMessage.warn{display:block;background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.status-row{margin-top:16px}.user-box{margin-top:12px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+button{border:0;border-radius:9px;padding:12px 14px;background:#3158a6;color:#fff;font-weight:700;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+.secondary{background:#667085}
+input{width:100%;padding:10px;border:1px solid #d0d5dd;border-radius:8px;margin-top:6px}
+.danger-note{font-size:13px;color:#7f1d1d;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:12px;margin-top:14px}
+.success-note{font-size:13px;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:12px;margin-top:14px}
+.hidden{display:none!important}
+pre{margin:0;background:#111827;color:#e5e7eb;border-radius:10px;padding:16px;overflow:auto;min-height:240px;white-space:pre-wrap}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>TU API TEST — Stage 1C</h1>
+    <div class="muted">Login Google → verifikasi Operator → baru tampilkan TEST <strong>tu_realisasi_save</strong>.</div>
+
+    <div class="login-box" id="loginBox">
+      <div class="login-title">1. Login Google</div>
+      <div class="muted">Tombol login Google akan muncul di bawah.</div>
+      <div id="googleSignInButton" style="margin-top:14px"></div>
+      <div id="loginMessage"></div>
+    </div>
+
+    <div id="loggedBox" class="hidden">
+      <div class="status-row">
+        Status Login:
+        <span id="loginStatus" class="badge ok">Operator</span>
+      </div>
+      <div class="user-box muted">
+        <strong id="tuUserName"></strong><br>
+        <span id="tuUserEmail"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="saveBox">
+    <h2 style="margin-top:0">2. TEST WRITE — tu_realisasi_save</h2>
+    <div class="muted" style="margin-bottom:14px">
+      Ini hanya satu pengujian. Jangan klik tombol SAVE dua kali setelah berhasil.
+    </div>
+
+    <div class="grid">
+      <label>
+        ID TU
+        <input id="saveIdTu" value="TU-2026-000356" readonly style="background:#f2f4f7">
+      </label>
+      <label>
+        Tanggal Realisasi
+        <input id="saveTanggal" type="date" value="2026-10-09">
+      </label>
+      <label>
+        Bulan Realisasi
+        <input id="saveBulan" type="number" value="10" min="1" max="12">
+      </label>
+      <label>
+        Nominal Realisasi
+        <input id="saveNominal" type="number" value="100" min="1" step="1">
+      </label>
+      <label style="grid-column:1/-1">
+        Keterangan
+        <input id="saveKeterangan" value="TEST API TU">
+      </label>
+    </div>
+
+    <button id="btnSaveRealisasi" style="margin-top:14px">TEST tu_realisasi_save</button>
+    <div class="success-note">
+      Setelah berhasil, <strong>berhenti dulu</strong> dan kirimkan hasil di bawah kepada saya. Kita belum melakukan update/delete.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Hasil</h2>
+    <pre id="tuTestOutput">Belum ada pengujian.</pre>
+  </div>
+</div>
+
+<script src="assets/js/tu-config.js"></script>
+<script src="assets/js/tu-api.js"></script>
+<script>
+(function(){
+  const loginBox=document.getElementById('loginBox');
+  const loggedBox=document.getElementById('loggedBox');
+  const saveBox=document.getElementById('saveBox');
+  const loginMessage=document.getElementById('loginMessage');
+  const output=document.getElementById('tuTestOutput');
+  const saveButton=document.getElementById('btnSaveRealisasi');
+
+  const USER_KEY='p3hpl_tu_user_v1';
+  const TOKEN_KEY='p3hpl_tu_id_token_v1';
+
+  window.tuGetIdToken=function(){return String(sessionStorage.getItem(TOKEN_KEY)||'').trim()};
+  window.tuClearSession=function(){sessionStorage.removeItem(USER_KEY);sessionStorage.removeItem(TOKEN_KEY)};
+  window.tuSetIdToken=function(token){if(token) sessionStorage.setItem(TOKEN_KEY,String(token))};
+  window.tuShowMessage=function(message,type='error'){
+    loginMessage.className='';
+    loginMessage.classList.add(type==='success'?'success':type==='warning'?'warn':type==='info'?'info':'error');
+    loginMessage.textContent=message||'';
+  };
+  window.tuShowLogin=function(){
+    loginBox.classList.remove('hidden');
+    loggedBox.classList.add('hidden');
+    saveBox.classList.add('hidden');
+  };
+  window.tuHandleAuthExpired=function(){};
+
+  function showResult(action,data){output.textContent=action+'\n\n'+JSON.stringify(data,null,2)};
+
+  function showLoggedIn(user){
+    loginBox.classList.add('hidden');
+    loggedBox.classList.remove('hidden');
+    saveBox.classList.remove('hidden');
+    document.getElementById('tuUserName').textContent=user?.name||'Operator';
+    document.getElementById('tuUserEmail').textContent=user?.email||'';
+    document.getElementById('loginStatus').textContent=String(user?.role||'OPERATOR').toUpperCase();
+  }
+
+  async function handleGoogleCredential(response){
+    tuShowMessage('Token Google diterima. Memeriksa akun sebagai Operator...','info');
+    if(!response?.credential){tuShowMessage('Google tidak memberikan token login.');return}
+    try{
+      tuSetIdToken(response.credential);
+      const result=await tuApiRequest('tu_bootstrap',{tahun:TU_CONFIG.TAHUN_DEFAULT});
+      if(!result?.ok||!result?.user){tuClearSession();tuShowLogin();tuShowMessage(result?.message||'Login TU gagal.');return}
+      if(String(result.user.role||'').trim().toUpperCase()!=='OPERATOR'){
+        tuClearSession();tuShowLogin();tuShowMessage('Akun berhasil dikenali, tetapi bukan role OPERATOR.');return;
+      }
+      sessionStorage.setItem(USER_KEY,JSON.stringify({email:result.user.email||'',name:result.user.name||'',role:result.user.role||''}));
+      showLoggedIn(result.user);
+      showResult('tu_bootstrap',result);
+    }catch(error){
+      tuClearSession();tuShowLogin();showResult('tu_bootstrap',{ok:false,error:error?.message||String(error)});tuShowMessage(error?.message||'Login TU gagal.');
+    }
+  }
+
+  function renderGoogle(){
+    if(!window.google?.accounts?.id){
+      tuShowMessage('Google Identity Services belum termuat. Tunggu beberapa detik lalu refresh halaman.','warning');
+      return false;
+    }
+    const clientId=String(TU_CONFIG.GOOGLE_CLIENT_ID||'').trim();
+    if(!clientId){tuShowMessage('GOOGLE_CLIENT_ID belum tersedia di tu-config.js.');return false}
+    google.accounts.id.initialize({client_id:clientId,callback:handleGoogleCredential,auto_select:false,cancel_on_tap_outside:true});
+    const el=document.getElementById('googleSignInButton');
+    el.innerHTML='';
+    google.accounts.id.renderButton(el,{theme:'outline',size:'large',text:'signin_with',shape:'rectangular',width:300});
+    tuShowMessage('Tombol login Google sudah siap. Klik tombol Google di atas.','info');
+    return true;
+  }
+
+  async function init(){
+    if(!TU_CONFIG?.TU_API_URL){tuShowMessage('TU_API_URL belum tersedia.');return}
+    const token=tuGetIdToken();
+    if(token){
+      try{
+        const r=await tuApiRequest('tu_bootstrap',{tahun:TU_CONFIG.TAHUN_DEFAULT});
+        if(r?.ok&&r?.user&&String(r.user.role||'').toUpperCase()==='OPERATOR'){showLoggedIn(r.user);showResult('tu_bootstrap',r);return}
+      }catch(e){tuClearSession()}
+    }
+    tuShowLogin();
+    let tries=0;
+    const timer=setInterval(()=>{tries++;if(renderGoogle()||tries>=20)clearInterval(timer)},300);
+  }
+
+  saveButton.addEventListener('click',async function(){
+    saveButton.disabled=true;
+    output.textContent='Menjalankan tu_realisasi_save...';
+    try{
+      const payload={
+        tahun:TU_CONFIG.TAHUN_DEFAULT,
+        id_tu:document.getElementById('saveIdTu').value.trim(),
+        tanggal_realisasi:document.getElementById('saveTanggal').value,
+        bulan_realisasi:Number(document.getElementById('saveBulan').value),
+        nominal_realisasi:Number(document.getElementById('saveNominal').value),
+        keterangan:document.getElementById('saveKeterangan').value.trim()
+      };
+      const result=await tuApiRequest('tu_realisasi_save',payload);
+      showResult('tu_realisasi_save',result);
+      if(result?.ok){saveButton.textContent='SAVE BERHASIL — JANGAN KLIK LAGI'}else{saveButton.disabled=false}
+    }catch(error){
+      showResult('tu_realisasi_save',{ok:false,error:error?.message||String(error)});
+      saveButton.disabled=false;
+    }
+  });
+
+  window.addEventListener('load',init,{once:true});
+})();
+</script>
+</body>
+</html>
