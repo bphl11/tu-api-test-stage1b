@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TU API Test — Stage 1B</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    .d-none{display:none!important}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#202938}
+    .wrap{max-width:1100px;margin:36px auto;padding:0 20px}
+    .card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:24px;box-shadow:0 4px 18px rgba(0,0,0,.05);margin-bottom:18px}
+    h1{margin:0 0 6px;font-size:26px}
+    .muted{color:#667085}
+    .status{display:inline-block;padding:6px 10px;border-radius:999px;background:#eef2f6;font-size:13px;font-weight:700}
+    .ok{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}.wait{background:#fef3c7;color:#92400e}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    button{border:0;border-radius:9px;padding:12px 14px;background:#3158a6;color:#fff;font-weight:700;cursor:pointer}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .login{margin:16px 0}
+    pre{margin:0;background:#111827;color:#e5e7eb;border-radius:10px;padding:16px;overflow:auto;min-height:220px;white-space:pre-wrap}
+    .danger-note{font-size:13px;color:#7f1d1d;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:12px;margin-top:14px}
+    @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>TU API TEST — Stage 1C</h1>
+    <div class="muted">Read-only + controlled write testing. Deployment: <strong>/dev</strong>. Tahun: <strong>2026</strong>.</div>
+
+    <div id="tuLoginPanel" class="login">
+      <div id="googleSignInButton"></div>
+      <div id="tuLoginLoading" class="muted" style="margin-top:8px"></div>
+      <div id="tuAuthMessage" class="muted" style="margin-top:8px"></div>
+    </div>
+
+    <div id="tuAppPanel" style="display:none">
+      <div style="margin-bottom:12px">
+        Status Login:
+        <span id="tuLoginStatus" class="status wait">Memeriksa...</span>
+      </div>
+      <div id="tuUserBox" class="muted" style="margin-bottom:16px">
+        <strong id="tuUserName"></strong><br>
+        <span id="tuUserEmail"></span>
+      </div>
+
+      <div class="grid">
+        <button data-action="tu_bootstrap">Test tu_bootstrap</button>
+        <button data-action="tu_realisasi_list">Test tu_realisasi_list</button>
+        <button data-action="tu_rpd_list">Test tu_rpd_list</button>
+        <button data-action="tu_revisi_list">Test tu_revisi_list</button>
+        <button data-action="tu_monitoring">Test tu_monitoring</button>
+      </div>
+
+      <div class="danger-note">
+        Endpoint read-only tetap aman. Setelah login berhasil, bagian <strong>TEST tu_realisasi_save</strong> akan aktif.
+      </div>
+    </div>
+  </div>
+
+  <div id="tuSaveCard" class="card" style="display:none">
+    <h2 style="margin-top:0">TEST WRITE — tu_realisasi_save</h2>
+    <div class="muted" style="margin-bottom:14px">Tes ini baru digunakan setelah login Google berhasil.</div>
+    <div class="grid">
+      <label>ID TU<br><input id="saveIdTu" value="TU-2026-000356" readonly style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px;background:#f2f4f7"></label>
+      <label>Tanggal Realisasi<br><input id="saveTanggal" type="date" value="2026-10-09" style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px"></label>
+      <label>Bulan Realisasi<br><input id="saveBulan" type="number" value="10" min="1" max="12" style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px"></label>
+      <label>Nominal Realisasi<br><input id="saveNominal" type="number" value="100" min="1" step="1" style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px"></label>
+      <label style="grid-column:1/-1">Keterangan<br><input id="saveKeterangan" value="TEST API TU" style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px"></label>
+    </div>
+    <button id="btnSaveRealisasi" style="margin-top:14px">TEST tu_realisasi_save</button>
+    <div class="danger-note" style="margin-top:12px">Tekan sekali saja. Jangan klik dua kali.</div>
+  </div>
+
+  <div id="tuUpdateCard" class="card" style="display:none">
+    <h2 style="margin-top:0">TEST UPDATE — tu_realisasi_update</h2>
+    <div class="muted" style="margin-bottom:14px">Update aman: hanya Keterangan yang diubah. Nominal tetap 100, tanggal tetap 09/10/2026, bulan tetap 10.</div>
+    <div class="grid">
+      <label>ID Realisasi TU<br><input id="updateIdRealisasi" value="RTU-2026-000001" readonly style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px;background:#f2f4f7"></label>
+      <label>Tahun<br><input id="updateTahun" type="number" value="2026" readonly style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px;background:#f2f4f7"></label>
+      <label>Tanggal Realisasi<br><input id="updateTanggal" type="date" value="2026-10-09" style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px"></label>
+      <label>Bulan Realisasi<br><input id="updateBulan" type="number" value="10" min="1" max="12" style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px"></label>
+      <label>Nominal Realisasi<br><input id="updateNominal" type="number" value="100" min="1" step="1" style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px"></label>
+      <label>Keterangan Baru<br><input id="updateKeterangan" value="TEST API TU - UPDATE" style="width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px"></label>
+    </div>
+    <button id="btnUpdateRealisasi" style="margin-top:14px">TEST tu_realisasi_update</button>
+    <div class="danger-note" style="margin-top:12px">Tekan satu kali saja. Setelah berhasil, jangan lakukan update/delete lagi sebelum hasil diverifikasi.</div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Hasil</h2>
+    <pre id="tuTestOutput">Belum ada pengujian.</pre>
+  </div>
+</div>
+
+<script src="assets/js/tu-config.js"></script>
+<script src="assets/js/tu-api.js"></script>
+<script src="assets/js/tu-auth.js"></script>
+
+<script>
+(function () {
+  const output = document.getElementById("tuTestOutput");
+  const appPanel = document.getElementById("tuAppPanel");
+  const loginPanel = document.getElementById("tuLoginPanel");
+  const loginStatus = document.getElementById("tuLoginStatus");
+
+  function showResult(action, data) {
+    output.textContent =
+      action + "\\n\\n" +
+      JSON.stringify(data, null, 2);
+  }
+
+  function setLoggedIn(user) {
+    loginPanel.style.display = "none";
+    appPanel.style.display = "";
+    document.getElementById("tuSaveCard").style.display = "";
+    document.getElementById("tuUpdateCard").style.display = "";
+    loginStatus.textContent = "Operator";
+    loginStatus.className = "status ok";
+    document.getElementById("tuUserName").textContent = user?.name || "";
+    document.getElementById("tuUserEmail").textContent = user?.email || "";
+  }
+
+  // Dipanggil oleh callback auth jika tu-auth.js mengekspos user hasil login.
+  window.tuShowLogin = function () {
+    loginPanel.style.display = "";
+    appPanel.style.display = "none";
+    loginStatus.textContent = "Belum login";
+    loginStatus.className = "status wait";
+    document.getElementById("tuUpdateCard").style.display = "none";
+  };
+
+  window.tuShowMessage = function (message) {
+    document.getElementById("tuAuthMessage").textContent = message || "";
+  };
+
+  window.tuHandleBootstrap = function (data) {
+    if (data && data.user) setLoggedIn(data.user);
+  };
+
+  window.tuInitData = function (data) {
+    if (data && data.user) setLoggedIn(data.user);
+  };
+
+  const saveButton = document.getElementById("btnSaveRealisasi");
+  saveButton.addEventListener("click", async function () {
+    saveButton.disabled = true;
+    output.textContent = "Menjalankan tu_realisasi_save...";
+    try {
+      const payload = {
+        tahun: TU_CONFIG.TAHUN_DEFAULT,
+        id_tu: document.getElementById("saveIdTu").value.trim(),
+        tanggal_realisasi: document.getElementById("saveTanggal").value,
+        bulan_realisasi: Number(document.getElementById("saveBulan").value),
+        nominal_realisasi: Number(document.getElementById("saveNominal").value),
+        keterangan: document.getElementById("saveKeterangan").value.trim()
+      };
+      const r = await tuApiRequest("tu_realisasi_save", payload);
+      output.textContent = "tu_realisasi_save\n\n" + JSON.stringify(r, null, 2);
+      if (r?.ok) saveButton.textContent = "SAVE BERHASIL — Jangan klik lagi";
+      else saveButton.disabled = false;
+    } catch (e) {
+      output.textContent = "tu_realisasi_save\n\n" + JSON.stringify({ok:false,error:e?.message||String(e)}, null, 2);
+      saveButton.disabled = false;
+    }
+  });
+
+  const updateButton = document.getElementById("btnUpdateRealisasi");
+  updateButton.addEventListener("click", async function () {
+    updateButton.disabled = true;
+    output.textContent = "Menjalankan tu_realisasi_update...";
+
+    try {
+      const payload = {
+        tahun: Number(document.getElementById("updateTahun").value),
+        id_realisasi_tu: document.getElementById("updateIdRealisasi").value.trim(),
+        tanggal_realisasi: document.getElementById("updateTanggal").value,
+        bulan_realisasi: Number(document.getElementById("updateBulan").value),
+        nominal_realisasi: Number(document.getElementById("updateNominal").value),
+        keterangan: document.getElementById("updateKeterangan").value.trim()
+      };
+
+      const r = await tuApiRequest("tu_realisasi_update", payload);
+      output.textContent = "tu_realisasi_update\n\n" + JSON.stringify(r, null, 2);
+
+      if (r?.ok) {
+        updateButton.textContent = "UPDATE BERHASIL — Jangan klik lagi";
+      } else {
+        updateButton.disabled = false;
+      }
+    } catch (e) {
+      output.textContent = "tu_realisasi_update\n\n" + JSON.stringify({ok:false,error:e?.message||String(e)}, null, 2);
+      updateButton.disabled = false;
+    }
+  });
+
+  document.querySelectorAll("[data-action]").forEach(function (button) {
+    button.addEventListener("click", async function () {
+      const action = button.dataset.action;
+      button.disabled = true;
+      output.textContent = "Menjalankan " + action + "...";
+
+      try {
+        let payload = { tahun: TU_CONFIG.TAHUN_DEFAULT };
+
+        if (action === "tu_realisasi_list") {
+          payload = { tahun: TU_CONFIG.TAHUN_DEFAULT };
+        } else if (action === "tu_rpd_list") {
+          payload = { tahun: TU_CONFIG.TAHUN_DEFAULT };
+        } else if (action === "tu_revisi_list") {
+          payload = { tahun: TU_CONFIG.TAHUN_DEFAULT };
+        } else if (action === "tu_monitoring") {
+          payload = { tahun: TU_CONFIG.TAHUN_DEFAULT };
+        }
+
+        const result = await tuApiRequest(action, payload);
+        showResult(action, result);
+      } catch (error) {
+        showResult(action, {
+          ok: false,
+          error: error?.message || String(error)
+        });
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
