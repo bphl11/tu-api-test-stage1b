@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TU API TEST — Revisi Save</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f4f6f8;color:#202938;margin:0}
+.wrap{max-width:1000px;margin:30px auto;padding:20px}
+.card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:24px;margin-bottom:18px}
+h1{margin:0 0 8px}
+.muted{color:#667085}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+button{padding:12px 14px;border:0;border-radius:9px;background:#3158a6;color:#fff;font-weight:700;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,select{width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px}
+.status{display:inline-block;padding:6px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:700}
+.ok{background:#dcfce7;color:#166534}
+.warn{background:#fff7ed;color:#9a3412}
+.note{background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:9px;margin-top:14px;font-size:13px;color:#7f1d1d}
+.summary{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-top:16px}
+pre{background:#111827;color:#e5e7eb;padding:16px;border-radius:10px;min-height:240px;white-space:pre-wrap;overflow:auto}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="card">
+<h1>TU API TEST — Revisi Save</h1>
+<div class="muted">Test terkendali endpoint <b>tu_revisi_save</b> · Tahun 2026.</div>
+
+<div id="tuLoginPanel" class="card" style="padding:16px;background:#f8fafc;margin-top:18px;margin-bottom:0">
+<div style="font-weight:700;margin-bottom:8px">1. LOGIN GOOGLE</div>
+<div id="googleSignInButton" style="min-height:44px"></div>
+<div id="tuLoginLoading" class="muted" style="margin-top:8px"></div>
+<div id="tuAuthMessage" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div id="tuAppPanel" style="display:none;margin-top:18px">
+<p style="margin:0 0 12px">Status Login:
+<span id="tuLoginStatus" class="status">Belum login</span>
+</p>
+<div class="muted"><b id="tuUserName"></b><br><span id="tuUserEmail"></span></div>
+</div>
+</div>
+
+<div id="revisiCard" class="card" style="display:none">
+<h2 style="margin-top:0">2. TEST WRITE — tu_revisi_save</h2>
+<p class="muted">Kita hanya menaikkan Pagu Revisi dari <b>500</b> menjadi <b>600</b> pada item test <b>TU-2026-000356</b>. RPD existing = 100, sehingga Pagu Baru 600 tetap aman.</p>
+
+<div class="grid">
+<label>ID TU
+<input id="idTu" value="TU-2026-000356" readonly style="background:#f2f4f7">
+</label>
+<label>Tahun
+<input id="tahun" value="2026" readonly style="background:#f2f4f7">
+</label>
+<label>Pagu Lama
+<input id="paguLama" value="500" readonly style="background:#f2f4f7">
+</label>
+<label>Pagu Baru
+<input id="paguBaru" type="number" value="600" min="100" step="1">
+</label>
+<label>Jenis Revisi
+<select id="jenisRevisi">
+<option value="PENAMBAHAN_PAGU">PENAMBAHAN_PAGU</option>
+<option value="PENGURANGAN_PAGU">PENGURANGAN_PAGU</option>
+<option value="REALOKASI">REALOKASI</option>
+</select>
+</label>
+<label>Tanggal Revisi
+<input id="tanggalRevisi" type="date" value="2026-10-09">
+</label>
+<label style="grid-column:1/-1">Alasan
+<input id="alasan" value="TEST REVISI PAGU TU">
+</label>
+</div>
+
+<div class="summary">
+<b>Preview payload sebelum dikirim:</b>
+<pre id="payloadPreview" style="min-height:120px;margin-top:10px">Belum ada preview.</pre>
+</div>
+
+<button id="btnPreview" style="margin-top:14px">CEK PAYLOAD SAJA</button>
+<button id="btnSave" style="margin-top:14px">TEST tu_revisi_save</button>
+
+<div class="note">
+Jangan tekan SAVE sebelum payload di atas sudah Anda periksa. Setelah SAVE berhasil, jangan jalankan revisi kedua pada item ini.
+</div>
+</div>
+
+<div class="card">
+<h2 style="margin-top:0">3. HASIL</h2>
+<pre id="output">Belum ada pengujian.</pre>
+</div>
+
+</div>
+
+<script src="assets/js/tu-config.js"></script>
+<script src="assets/js/tu-api.js"></script>
+<script src="assets/js/tu-auth.js"></script>
+<script>
+(function(){
+const output=document.getElementById("output");
+const loginPanel=document.getElementById("tuLoginPanel");
+const appPanel=document.getElementById("tuAppPanel");
+const revisiCard=document.getElementById("revisiCard");
+const status=document.getElementById("tuLoginStatus");
+const preview=document.getElementById("payloadPreview");
+
+function getPayload(){
+  return {
+    tahun:Number(document.getElementById("tahun").value),
+    id_tu:document.getElementById("idTu").value.trim(),
+    pagu_baru:Number(document.getElementById("paguBaru").value),
+    jenis_revisi:document.getElementById("jenisRevisi").value,
+    tanggal_revisi:document.getElementById("tanggalRevisi").value,
+    alasan:document.getElementById("alasan").value.trim()
+  };
+}
+
+function setLoggedIn(user){
+  loginPanel.style.display="none";
+  appPanel.style.display="";
+  revisiCard.style.display="";
+  status.textContent="LOGIN BERHASIL — OPERATOR";
+  status.className="status ok";
+  document.getElementById("tuUserName").textContent=user?.name||"";
+  document.getElementById("tuUserEmail").textContent=user?.email||"";
+  preview.textContent=JSON.stringify(getPayload(),null,2);
+}
+
+window.tuShowLogin=function(){
+  loginPanel.style.display="";
+  appPanel.style.display="none";
+  revisiCard.style.display="none";
+  status.textContent="Belum login";
+  status.className="status";
+};
+
+window.tuShowMessage=function(message){
+  document.getElementById("tuAuthMessage").textContent=message||"";
+};
+
+window.tuHandleBootstrap=function(data){
+  if(data?.user) setLoggedIn(data.user);
+};
+
+window.tuInitData=function(data){
+  if(data?.user) setLoggedIn(data);
+};
+
+document.getElementById("btnPreview").addEventListener("click",function(){
+  const p=getPayload();
+  preview.textContent=JSON.stringify(p,null,2);
+  output.textContent="PAYLOAD PREVIEW\n\n"+JSON.stringify(p,null,2);
+});
+
+document.getElementById("btnSave").addEventListener("click",async function(){
+  const button=this;
+  const p=getPayload();
+  button.disabled=true;
+  output.textContent="Menjalankan tu_revisi_save...";
+
+  try{
+    const result=await tuApiRequest("tu_revisi_save",p);
+    output.textContent="tu_revisi_save\n\n"+JSON.stringify(result,null,2);
+
+    if(result?.ok){
+      button.textContent="REVISI SAVE BERHASIL — Jangan klik lagi";
+    }else{
+      button.disabled=false;
+    }
+  }catch(error){
+    output.textContent="tu_revisi_save\n\n"+JSON.stringify({
+      ok:false,
+      error:error?.message||String(error)
+    },null,2);
+    button.disabled=false;
+  }
+});
+
+["paguBaru","jenisRevisi","tanggalRevisi","alasan"].forEach(function(id){
+  document.getElementById(id).addEventListener("input",function(){
+    preview.textContent=JSON.stringify(getPayload(),null,2);
+  });
+});
+})();
+</script>
+</body>
+</html>
