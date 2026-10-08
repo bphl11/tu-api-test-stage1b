@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TU API TEST — Monitoring Filter</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f4f6f8;color:#202938;margin:0}
+.wrap{max-width:1000px;margin:30px auto;padding:20px}
+.card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:24px;margin-bottom:18px}
+h1{margin:0 0 8px}
+.muted{color:#667085}
+.login-box{padding:16px;background:#f8fafc;border:1px solid #dbe2ea;border-radius:10px;margin-top:18px}
+.status{display:inline-block;padding:6px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:700}
+.ok{background:#dcfce7;color:#166534}
+.bad{background:#fee2e2;color:#991b1b}
+button{padding:12px;border:0;border-radius:9px;background:#3158a6;color:#fff;font-weight:700;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+input{width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px}
+.note{background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:9px;margin-top:14px;font-size:13px;color:#7f1d1d}
+pre{background:#111827;color:#e5e7eb;padding:16px;border-radius:10px;min-height:260px;white-space:pre-wrap;overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="card">
+<h1>TU API TEST — Monitoring Filter</h1>
+<div class="muted">Read-only test untuk <b>tu_monitoring</b> dengan filter satu ID TU · Tahun 2026.</div>
+
+<div id="tuLoginPanel" class="login-box">
+<div style="font-weight:700;margin-bottom:8px">1. LOGIN GOOGLE</div>
+<div id="googleSignInButton" style="min-height:44px"></div>
+<div id="tuLoginLoading" class="muted" style="margin-top:8px"></div>
+<div id="tuAuthMessage" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div id="tuAppPanel" style="display:none;margin-top:18px">
+<p style="margin:0 0 12px">
+Status Login:
+<span id="tuLoginStatus" class="status">Belum login</span>
+</p>
+<div class="muted">
+<b id="tuUserName"></b><br>
+<span id="tuUserEmail"></span>
+</div>
+</div>
+</div>
+
+<div id="monitoringCard" class="card" style="display:none">
+<h2 style="margin-top:0">2. TEST — tu_monitoring (FILTER ID TU)</h2>
+
+<label>
+ID TU
+<input id="monitoringIdTu" value="TU-2026-000356" readonly style="background:#f2f4f7">
+</label>
+
+<label style="display:block;margin-top:12px">
+Tahun
+<input id="monitoringTahun" value="2026" readonly style="background:#f2f4f7">
+</label>
+
+<button id="btnMonitoring" style="margin-top:14px">
+TEST tu_monitoring — TU-2026-000356
+</button>
+
+<div class="note">
+Read-only. Request dikirim dengan <b>id_tu=TU-2026-000356</b> agar server tidak memproses seluruh master Tahun 2026.
+Tidak ada SAVE, UPDATE, DELETE, atau perubahan data.
+</div>
+</div>
+
+<div class="card">
+<h2 style="margin-top:0">3. HASIL</h2>
+<pre id="tuTestOutput">Belum ada pengujian.</pre>
+</div>
+
+</div>
+
+<script src="assets/js/tu-config.js"></script>
+<script src="assets/js/tu-api.js"></script>
+<script src="assets/js/tu-auth.js"></script>
+
+<script>
+(function(){
+const output=document.getElementById("tuTestOutput");
+const loginPanel=document.getElementById("tuLoginPanel");
+const appPanel=document.getElementById("tuAppPanel");
+const monitoringCard=document.getElementById("monitoringCard");
+const loginStatus=document.getElementById("tuLoginStatus");
+
+function setLoggedIn(user){
+  loginPanel.style.display="none";
+  appPanel.style.display="";
+  monitoringCard.style.display="";
+  loginStatus.textContent="LOGIN BERHASIL — OPERATOR";
+  loginStatus.className="status ok";
+  document.getElementById("tuUserName").textContent=user?.name||"";
+  document.getElementById("tuUserEmail").textContent=user?.email||"";
+}
+
+window.tuShowLogin=function(){
+  loginPanel.style.display="";
+  appPanel.style.display="none";
+  monitoringCard.style.display="none";
+  loginStatus.textContent="Belum login";
+  loginStatus.className="status";
+};
+
+window.tuShowMessage=function(message){
+  document.getElementById("tuAuthMessage").textContent=message||"";
+};
+
+window.tuHandleBootstrap=function(data){
+  if(data?.user) setLoggedIn(data.user);
+};
+
+window.tuInitData=function(data){
+  if(data?.user) setLoggedIn(data);
+};
+
+document.getElementById("btnMonitoring").addEventListener("click", async function(){
+  const button=this;
+  button.disabled=true;
+  output.textContent="Menjalankan tu_monitoring dengan filter TU-2026-000356...";
+
+  try{
+    const payload={
+      tahun:Number(document.getElementById("monitoringTahun").value),
+      id_tu:document.getElementById("monitoringIdTu").value.trim()
+    };
+
+    const result=await tuApiRequest("tu_monitoring",payload);
+
+    output.textContent=
+      "tu_monitoring (FILTER "+payload.id_tu+")\n\n"+
+      JSON.stringify(result,null,2);
+
+  }catch(error){
+    output.textContent=
+      "tu_monitoring (FILTER)\n\n"+
+      JSON.stringify({
+        ok:false,
+        error:error?.message||String(error)
+      },null,2);
+  }finally{
+    button.disabled=false;
+  }
+});
+})();
+</script>
+</body>
+</html>
