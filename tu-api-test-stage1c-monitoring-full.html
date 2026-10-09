@@ -6,73 +6,42 @@
 <title>TU API TEST — Monitoring FULL</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
-*{box-sizing:border-box}
 body{font-family:Arial,sans-serif;background:#f4f6f8;color:#202938;margin:0}
 .wrap{max-width:1000px;margin:30px auto;padding:20px}
 .card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:24px;margin-bottom:18px}
-h1{margin:0 0 8px}
-h2{margin-top:0}
-.muted{color:#667085}
-.login-box{padding:16px;background:#f8fafc;border:1px solid #dbe2ea;border-radius:10px;margin-top:18px}
+h1,h2{margin-top:0}.muted{color:#667085}
+.login-box{padding:16px;background:#f8fafc;border:1px solid #dbe2ea;border-radius:10px}
 .status{display:inline-block;padding:6px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:700}
-.ok{background:#dcfce7;color:#166534}
-.bad{background:#fee2e2;color:#991b1b}
+.status.ok{background:#dcfce7;color:#166534}.status.bad{background:#fee2e2;color:#991b1b}
 button{padding:12px 16px;border:0;border-radius:9px;background:#3158a6;color:#fff;font-weight:700;cursor:pointer}
 button:disabled{opacity:.5;cursor:not-allowed}
 input{width:100%;padding:10px;margin-top:6px;border:1px solid #d0d5dd;border-radius:8px}
-.note{background:#eff6ff;border:1px solid #bfdbfe;padding:12px;border-radius:9px;margin-top:14px;font-size:13px;color:#1e3a8a}
+.note{background:#fff7ed;border:1px solid #fed7aa;padding:12px;border-radius:9px;margin-top:14px;font-size:13px;color:#9a3412}
 pre{background:#111827;color:#e5e7eb;padding:16px;border-radius:10px;min-height:320px;white-space:pre-wrap;overflow:auto}
 .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
 .metric{padding:12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px}
 .metric b{display:block;font-size:18px;margin-top:4px}
-.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
-@media(max-width:700px){.meta{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="wrap">
-
 <div class="card">
 <h1>TU API TEST — Monitoring FULL</h1>
 <div class="muted">Read-only test untuk <b>tu_monitoring</b> Tahun 2026 tanpa filter <b>id_tu</b>.</div>
-
-<div id="tuLoginPanel" class="login-box">
+<div class="login-box" style="margin-top:18px">
 <div style="font-weight:700;margin-bottom:8px">1. LOGIN GOOGLE</div>
 <div id="googleSignInButton" style="min-height:44px"></div>
-<div id="tuLoginLoading" class="muted" style="margin-top:8px"></div>
-<div id="tuAuthMessage" class="muted" style="margin-top:8px"></div>
-</div>
-
-<div id="tuAppPanel" style="display:none;margin-top:18px">
-<p style="margin:0 0 12px">
-Status Login:
-<span id="tuLoginStatus" class="status">Belum login</span>
-</p>
-<div class="muted">
-<b id="tuUserName"></b><br>
-<span id="tuUserEmail"></span>
-</div>
+<div id="loginStatus" class="status" style="margin-top:8px">Menunggu login...</div>
+<div id="loginInfo" class="muted" style="margin-top:8px"></div>
+<div id="loginError" style="margin-top:8px;color:#991b1b"></div>
 </div>
 </div>
 
 <div id="monitoringCard" class="card" style="display:none">
 <h2>2. TEST — tu_monitoring (FULL)</h2>
-
-<label>
-Tahun
-<input id="monitoringTahun" value="2026" readonly style="background:#f2f4f7">
-</label>
-
-<button id="btnMonitoring" style="margin-top:14px">
-TEST tu_monitoring — FULL 2026
-</button>
-
-<div class="note warn">
-<b>Read-only.</b> Request hanya mengirim <b>action=tu_monitoring</b> dan <b>tahun=2026</b>.
-Tidak ada <b>id_tu</b>, sehingga server memproses seluruh master aktif Tahun 2026.
-Tidak ada SAVE, UPDATE, DELETE, atau perubahan data.
-</div>
-
+<label>Tahun<input value="2026" readonly style="background:#f2f4f7"></label>
+<button id="btnMonitoring" style="margin-top:14px">TEST tu_monitoring — FULL 2026</button>
+<div class="note"><b>Read-only.</b> Request langsung ke deployment <b>STAGING OPTIMIZED</b>. Tidak ada <b>id_tu</b>. Tidak ada SAVE, UPDATE, DELETE, atau perubahan data.</div>
 <div class="meta">
 <div class="metric">HTTP Status<b id="httpStatus">-</b></div>
 <div class="metric">Waktu Respons<b id="responseTime">-</b></div>
@@ -84,134 +53,67 @@ Tidak ada SAVE, UPDATE, DELETE, atau perubahan data.
 <h2>3. HASIL</h2>
 <pre id="tuTestOutput">Belum ada pengujian.</pre>
 </div>
-
 </div>
-
-<script src="assets/js/tu-config.js"></script>
-<script src="assets/js/tu-api.js"></script>
-<script src="assets/js/tu-auth.js"></script>
 
 <script>
 (function(){
-  // Override hanya untuk halaman test ini:
-  // langsung ke deployment Apps Script STAGING OPTIMIZED V2.
-  TU_CONFIG.TU_API_URL =
-    "https://script.google.com/macros/s/AKfycbyLfDwll2EOs6fbUTZ3a7asENik4cjes_WCRqdCwN5gVTH5B5wM5l60NOIZOIbr7JjnjQ/exec";
+const API_URL="https://script.google.com/macros/s/AKfycbyLfDwll2EOs6fbUTZ3a7asENik4cjes_WCRqdCwN5gVTH5B5wM5l60NOIZOIbr7JjnjQ/exec";
+const CLIENT_ID="443412026871-pqoa9tskrfkaffp5u2ohjhtq1l0ds2r1.apps.googleusercontent.com";
+let idToken="";
 
-  const output = document.getElementById("tuTestOutput");
-  const loginPanel = document.getElementById("tuLoginPanel");
-  const appPanel = document.getElementById("tuAppPanel");
-  const monitoringCard = document.getElementById("monitoringCard");
-  const loginStatus = document.getElementById("tuLoginStatus");
-  const httpStatus = document.getElementById("httpStatus");
-  const responseTime = document.getElementById("responseTime");
-  const detailCount = document.getElementById("detailCount");
+const loginStatus=document.getElementById("loginStatus");
+const loginInfo=document.getElementById("loginInfo");
+const loginError=document.getElementById("loginError");
+const monitoringCard=document.getElementById("monitoringCard");
+const output=document.getElementById("tuTestOutput");
+const httpStatus=document.getElementById("httpStatus");
+const responseTime=document.getElementById("responseTime");
+const detailCount=document.getElementById("detailCount");
 
-  function setLoggedIn(user){
-    loginPanel.style.display = "none";
-    appPanel.style.display = "";
-    monitoringCard.style.display = "";
-    loginStatus.textContent = "LOGIN BERHASIL — OPERATOR";
-    loginStatus.className = "status ok";
-    document.getElementById("tuUserName").textContent = user?.name || "";
-    document.getElementById("tuUserEmail").textContent = user?.email || "";
-  }
+function setStatus(t,c,i,e){
+ loginStatus.textContent=t; loginStatus.className="status "+(c||"");
+ loginInfo.textContent=i||""; loginError.textContent=e||"";
+}
+async function postApi(action,payload){
+ const t0=performance.now();
+ const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,id_token:idToken,...payload}),redirect:"follow",credentials:"omit",cache:"no-store"});
+ const ms=performance.now()-t0,raw=await res.text();
+ let data; try{data=JSON.parse(raw)}catch(e){throw new Error("HTTP "+res.status+" — respons bukan JSON: "+raw.slice(0,500))}
+ return {http:res.status,ms,data};
+}
+async function onGoogle(response){
+ idToken=String(response?.credential||"").trim();
+ if(!idToken){setStatus("LOGIN GAGAL","bad","","Credential Google tidak ada.");return}
+ setStatus("Memverifikasi...","","","");
+ try{
+  const r=await postApi("tu_bootstrap",{tahun:2026});
+  if(r.http!==200)throw new Error("HTTP "+r.http);
+  if(r.data?.ok!==true)throw new Error(r.data?.message||"tu_bootstrap gagal.");
+  const u=r.data?.user||{};
+  if(String(u.role||"").toUpperCase()!=="OPERATOR")throw new Error("Akses hanya untuk Operator.");
+  setStatus("LOGIN BERHASIL — OPERATOR","ok",(u.name||"")+" · "+(u.email||""));
+  monitoringCard.style.display="";
+ }catch(e){idToken="";setStatus("LOGIN GAGAL","bad","",e.message||String(e))}
+}
+function initGoogle(){
+ if(!window.google?.accounts?.id){setStatus("GOOGLE BELUM SIAP","bad","","Refresh halaman lalu coba lagi.");return}
+ google.accounts.id.initialize({client_id:CLIENT_ID,callback:onGoogle,auto_select:false,cancel_on_tap_outside:true});
+ google.accounts.id.renderButton(document.getElementById("googleSignInButton"),{theme:"outline",size:"large",text:"signin_with",shape:"rectangular",width:300});
+}
+let tries=0; const timer=setInterval(function(){tries++;if(window.google?.accounts?.id){clearInterval(timer);initGoogle()}else if(tries>=40){clearInterval(timer);initGoogle()}},250);
 
-  window.tuShowLogin = function(){
-    loginPanel.style.display = "";
-    appPanel.style.display = "none";
-    monitoringCard.style.display = "none";
-    loginStatus.textContent = "Belum login";
-    loginStatus.className = "status";
-  };
-
-  window.tuShowMessage = function(message){
-    document.getElementById("tuAuthMessage").textContent = message || "";
-  };
-
-  window.tuHandleBootstrap = function(data){
-    if(data?.user) setLoggedIn(data.user);
-  };
-
-  window.tuInitData = function(data){
-    if(data?.user) setLoggedIn(data);
-  };
-
-  document.getElementById("btnMonitoring").addEventListener("click", async function(){
-    const button = this;
-    button.disabled = true;
-    httpStatus.textContent = "-";
-    responseTime.textContent = "-";
-    detailCount.textContent = "-";
-    output.textContent = "Menjalankan tu_monitoring FULL Tahun 2026...";
-
-    const started = performance.now();
-
-    try{
-      const idToken = tuGetIdToken();
-      if(!idToken) throw new Error("Sesi login TU tidak ditemukan.");
-
-      const body = JSON.stringify({
-        action: "tu_monitoring",
-        id_token: idToken,
-        tahun: 2026
-      });
-
-      const response = await fetch(TU_CONFIG.TU_API_URL, {
-        method: "POST",
-        headers: {"Content-Type":"text/plain;charset=utf-8"},
-        body,
-        redirect: "follow",
-        credentials: "omit",
-        cache: "no-store"
-      });
-
-      const elapsed = performance.now() - started;
-      responseTime.textContent = (elapsed / 1000).toFixed(2) + " detik";
-      httpStatus.textContent = String(response.status);
-
-      const text = await response.text();
-      let result;
-
-      try{
-        result = JSON.parse(text);
-      }catch(e){
-        output.textContent =
-          "tu_monitoring (FULL 2026)\n\n" +
-          "HTTP " + response.status + "\n\n" +
-          text.slice(0, 5000);
-        return;
-      }
-
-      const detail = Array.isArray(result?.detail) ? result.detail.length : 0;
-      detailCount.textContent = String(detail);
-
-      output.textContent =
-        "tu_monitoring (FULL 2026)\n\n" +
-        "HTTP " + response.status + "\n" +
-        "Waktu: " + (elapsed / 1000).toFixed(2) + " detik\n" +
-        "Detail: " + detail + "\n\n" +
-        JSON.stringify(result, null, 2);
-
-      if(response.ok && result?.ok){
-        httpStatus.className = "ok";
-      }else{
-        httpStatus.className = "bad";
-      }
-
-    }catch(error){
-      const elapsed = performance.now() - started;
-      responseTime.textContent = (elapsed / 1000).toFixed(2) + " detik";
-      output.textContent =
-        "tu_monitoring (FULL 2026)\n\n" +
-        JSON.stringify({
-          ok:false,
-          error:error?.message || String(error)
-        }, null, 2);
-    }finally{
-      button.disabled = false;
-    }
-  });
+document.getElementById("btnMonitoring").addEventListener("click",async function(){
+ const btn=this;btn.disabled=true;output.textContent="Menjalankan tu_monitoring FULL Tahun 2026...";httpStatus.textContent="-";responseTime.textContent="-";detailCount.textContent="-";
+ try{
+  if(!idToken)throw new Error("Belum login Google.");
+  const r=await postApi("tu_monitoring",{tahun:2026});
+  httpStatus.textContent=String(r.http);responseTime.textContent=(r.ms/1000).toFixed(2)+" detik";
+  const n=Array.isArray(r.data?.detail)?r.data.detail.length:0;detailCount.textContent=String(n);
+  output.textContent="tu_monitoring (FULL 2026)\n\nHTTP "+r.http+"\nWaktu: "+(r.ms/1000).toFixed(2)+" detik\nDetail: "+n+"\n\n"+JSON.stringify(r.data,null,2);
+  httpStatus.className=r.http===200&&r.data?.ok?"ok":"bad";
+ }catch(e){output.textContent="tu_monitoring (FULL 2026)\n\n"+JSON.stringify({ok:false,error:e.message||String(e)},null,2)}
+ finally{btn.disabled=false}
+});
 })();
 </script>
 </body>
