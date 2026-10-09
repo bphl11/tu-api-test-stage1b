@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TU API — Security Response Check V5</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f6f8;color:#202938;margin:0}
+.wrap{max-width:1000px;margin:30px auto;padding:20px}
+.card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:24px;margin-bottom:18px}
+h1,h2{margin-top:0}.muted{color:#667085}
+.status{display:inline-block;padding:6px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:700}
+.ok{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}
+button{padding:12px 16px;border:0;border-radius:9px;background:#3158a6;color:#fff;font-weight:700;cursor:pointer}
+button:disabled{opacity:.5}
+pre{background:#111827;color:#e5e7eb;padding:16px;border-radius:10px;min-height:300px;white-space:pre-wrap;overflow:auto}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}
+.metric{padding:12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px}
+.metric b{display:block;font-size:18px;margin-top:4px}
+.note{padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;color:#1e3a8a}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+<h1>TU API — Security Response Check V5</h1>
+<div class="muted">Read-only. Memeriksa response raw endpoint TU melalui Worker V5 Staging tanpa menampilkan token.</div>
+<div id="googleSignInButton" style="margin-top:16px"></div>
+<div id="status" class="status" style="margin-top:10px">Menunggu login...</div>
+<div id="info" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div id="testCard" class="card" style="display:none">
+<h2>Security check</h2>
+<div class="note"><b>Tidak ada SAVE / UPDATE / DELETE.</b> Halaman hanya memanggil endpoint read-only dan memeriksa apakah response mengandung field sensitif atau pola token.</div>
+<button id="run">JALANKAN SECURITY CHECK</button>
+<div class="grid">
+<div class="metric">Bootstrap<b id="s1">-</b></div>
+<div class="metric">Monitoring<b id="s2">-</b></div>
+<div class="metric">RPD List<b id="s3">-</b></div>
+<div class="metric">Revisi List<b id="s4">-</b></div>
+</div>
+</div>
+
+<div class="card">
+<h2>Hasil</h2>
+<pre id="out">Belum ada pengujian.</pre>
+</div>
+</div>
+
+<script>
+(function(){
+const API="https://tu-p3hpl-proxy-v5-staging.asterales-niza.workers.dev/tu";
+const CLIENT_ID="443412026871-pqoa9tskrfkaffp5u2ohjhtq1l0ds2r1.apps.googleusercontent.com";
+let token="";
+
+const SENSITIVE_KEYS=new Set([
+  "id_token","access_token","refresh_token","token",
+  "authorization","cookie","set-cookie"
+]);
+
+function inspect(value,path="$",found=[]){
+  if(Array.isArray(value)){
+    value.forEach((v,i)=>inspect(v,path+"["+i+"]",found));
+    return found;
+  }
+  if(value && typeof value==="object"){
+    for(const [k,v] of Object.entries(value)){
+      const key=String(k).toLowerCase();
+      if(SENSITIVE_KEYS.has(key)){
+        found.push({path:path+"."+k,type:"sensitive-key"});
+      }
+      inspect(v,path+"."+k,found);
+    }
+    return found;
+  }
+  if(typeof value==="string"){
+    // Do not display value. Only record if it looks like a long JWT.
+    const jwtLike=/^eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{10,}$/;
+    if(jwtLike.test(value.trim())){
+      found.push({path,type:"jwt-like-string"});
+    }
+  }
+  return found;
+}
+
+async function post(action,payload={}){
+  const res=await fetch(API,{
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body:JSON.stringify({action,id_token:token,...payload}),
+    cache:"no-store"
+  });
+  const raw=await res.text();
+  let data;
+  try{data=JSON.parse(raw)}catch(e){
+    throw new Error("HTTP "+res.status+" — response bukan JSON");
+  }
+  return {status:res.status,data};
+}
+
+async function login(resp){
+  token=String(resp?.credential||"").trim();
+  if(!token){status.textContent="LOGIN GAGAL";status.className="status bad";return;}
+  status.textContent="Memverifikasi...";
+  try{
+    const r=await post("tu_bootstrap",{tahun:2026});
+    if(r.status!==200||r.data?.ok!==true) throw new Error(r.data?.message||("HTTP "+r.status));
+    const u=r.data?.user||{};
+    if(String(u.role||"").toUpperCase()!=="OPERATOR") throw new Error("Akses hanya untuk Operator.");
+    status.textContent="LOGIN BERHASIL — OPERATOR";
+    status.className="status ok";
+    info.textContent=(u.name||"")+" · "+(u.email||"");
+    testCard.style.display="";
+  }catch(e){
+    token="";
+    status.textContent="LOGIN GAGAL";
+    status.className="status bad";
+    info.textContent=e.message||String(e);
+  }
+}
+
+function initGoogle(){
+  if(!window.google?.accounts?.id){
+    status.textContent="Google belum siap";
+    status.className="status bad";
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id:CLIENT_ID,
+    callback:login,
+    auto_select:false,
+    cancel_on_tap_outside:true
+  });
+  google.accounts.id.renderButton(
+    document.getElementById("googleSignInButton"),
+    {theme:"outline",size:"large",text:"signin_with",shape:"rectangular",width:300}
+  );
+}
+let tries=0;
+const timer=setInterval(()=>{
+  tries++;
+  if(window.google?.accounts?.id){clearInterval(timer);initGoogle();}
+  else if(tries>=40){clearInterval(timer);initGoogle();}
+},250);
+
+async function check(name,action,payload,index){
+  const cell=document.getElementById(index);
+  try{
+    const r=await post(action,payload);
+    const found=inspect(r.data);
+    const pass=r.status===200 && r.data?.ok===true && found.length===0;
+    cell.textContent=pass?"LULUS":"PERLU DICEK";
+    cell.className=pass?"ok":"bad";
+    return {
+      endpoint:name,
+      http:r.status,
+      ok:r.data?.ok===true,
+      sensitive_found:found
+    };
+  }catch(e){
+    cell.textContent="ERROR";
+    cell.className="bad";
+    return {endpoint:name,error:e.message||String(e)};
+  }
+}
+
+document.getElementById("run").onclick=async function(){
+  this.disabled=true;
+  document.getElementById("out").textContent="Menjalankan security check...";
+  ["s1","s2","s3","s4"].forEach(id=>document.getElementById(id).textContent="-");
+  try{
+    const results=[];
+    results.push(await check("tu_bootstrap","tu_bootstrap",{tahun:2026},"s1"));
+    results.push(await check("tu_monitoring","tu_monitoring",{tahun:2026},"s2"));
+    results.push(await check("tu_rpd_list","tu_rpd_list",{tahun:2026,id_tu:"TU-2026-000356"},"s3"));
+    results.push(await check("tu_revisi_list","tu_revisi_list",{tahun:2026,id_tu:"TU-2026-000356"},"s4"));
+
+    const pass=results.every(x=>x.error==null && x.http===200 && x.ok===true && x.sensitive_found?.length===0);
+
+    out.textContent=JSON.stringify({
+      status:pass?"PASS":"FAIL / PERLU PERBAIKAN",
+      catatan:"Nilai token tidak pernah ditampilkan. Hanya nama field/path sensitif yang dilaporkan.",
+      results
+    },null,2);
+  }finally{
+    this.disabled=false;
+  }
+};
+})();
+</script>
+</body>
+</html>
