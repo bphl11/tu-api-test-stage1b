@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TU API — Diagnostic TARGET Lama via Worker</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f6f8;color:#202938;margin:0}
+.wrap{max-width:1000px;margin:30px auto;padding:20px}
+.card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:24px;margin-bottom:18px}
+h1,h2{margin-top:0}.muted{color:#667085}
+.status{display:inline-block;padding:6px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:700}
+.ok{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}
+button{padding:12px 16px;border:0;border-radius:9px;background:#3158a6;color:#fff;font-weight:700;cursor:pointer}
+button:disabled{opacity:.5}
+pre{background:#111827;color:#e5e7eb;padding:16px;border-radius:10px;min-height:320px;white-space:pre-wrap;overflow:auto}
+.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.metric{padding:12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px}
+.metric b{display:block;font-size:18px;margin-top:4px}
+.note{padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;margin-top:14px;color:#1e3a8a}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="card">
+<h1>TU API — Diagnostic TARGET Lama</h1>
+<div class="muted">
+Login memakai mekanisme TU yang sudah terbukti berhasil.
+Setelah login, request diagnostic dikirim ke Worker staging terpisah.
+</div>
+
+<div id="tuLoginPanel" style="margin-top:18px">
+<div style="font-weight:700;margin-bottom:8px">1. LOGIN GOOGLE</div>
+<div id="googleSignInButton" style="min-height:44px"></div>
+<div id="tuLoginLoading" class="muted" style="margin-top:8px"></div>
+<div id="tuAuthMessage" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div id="tuAppPanel" style="display:none;margin-top:18px">
+<div>
+Status Login:
+<span id="tuLoginStatus" class="status">Belum login</span>
+</div>
+<div class="muted" style="margin-top:8px">
+<b id="tuUserName"></b><br>
+<span id="tuUserEmail"></span>
+</div>
+</div>
+</div>
+
+<div id="testCard" class="card" style="display:none">
+<h2>2. TEST — TARGET LAMA</h2>
+
+<div class="note">
+<b>Read-only.</b>
+Google Login dilakukan melalui Worker TU yang sekarang aktif.
+Pengukuran target lama dilakukan melalui <b>Diagnostic Worker</b>.
+Tidak ada SAVE, UPDATE, DELETE, atau perubahan data.
+</div>
+
+<button id="btnTest" style="margin-top:14px">
+UJI TARGET LAMA — tu_monitoring FULL 2026
+</button>
+
+<div class="meta">
+<div class="metric">HTTP<b id="http">-</b></div>
+<div class="metric">Upstream<b id="upstream">-</b></div>
+<div class="metric">Overhead<b id="overhead">-</b></div>
+</div>
+</div>
+
+<div class="card">
+<h2>3. HASIL</h2>
+<pre id="output">Belum ada pengujian.</pre>
+</div>
+
+</div>
+
+<script src="assets/js/tu-config.js"></script>
+<script src="assets/js/tu-api.js"></script>
+<script src="assets/js/tu-auth.js"></script>
+
+<script>
+(function(){
+const DIAGNOSTIC_URL="https://tu-p3hpl-diagnostic.asterales-niza.workers.dev/diag";
+const testCard=document.getElementById("testCard");
+const status=document.getElementById("tuLoginStatus");
+const output=document.getElementById("output");
+
+window.tuShowLogin=function(){
+  document.getElementById("tuLoginPanel").style.display="";
+  document.getElementById("tuAppPanel").style.display="none";
+  testCard.style.display="none";
+};
+window.tuShowMessage=function(message){
+  document.getElementById("tuAuthMessage").textContent=message||"";
+};
+window.tuHandleBootstrap=async function(data){
+  if(data?.user){
+    document.getElementById("tuLoginPanel").style.display="none";
+    document.getElementById("tuAppPanel").style.display="";
+    testCard.style.display="";
+    status.textContent="LOGIN BERHASIL — OPERATOR";
+    status.className="status ok";
+    document.getElementById("tuUserName").textContent=data.user.name||"";
+    document.getElementById("tuUserEmail").textContent=data.user.email||"";
+  }
+};
+window.tuInitData=function(){
+  const user=tuGetStoredUser();
+  if(user){
+    document.getElementById("tuLoginPanel").style.display="none";
+    document.getElementById("tuAppPanel").style.display="";
+    testCard.style.display="";
+    status.textContent="LOGIN TERSIMPAN — OPERATOR";
+    status.className="status ok";
+    document.getElementById("tuUserName").textContent=user.name||"";
+    document.getElementById("tuUserEmail").textContent=user.email||"";
+  }
+};
+
+document.getElementById("btnTest").addEventListener("click",async function(){
+  const btn=this;
+  btn.disabled=true;
+  output.textContent="Menjalankan diagnostic TARGET lama...";
+  document.getElementById("http").textContent="-";
+  document.getElementById("upstream").textContent="-";
+  document.getElementById("overhead").textContent="-";
+
+  const token=tuGetIdToken();
+  if(!token){
+    output.textContent="Sesi login TU tidak ditemukan. Silakan login ulang.";
+    btn.disabled=false;
+    return;
+  }
+
+  const started=performance.now();
+
+  try{
+    const res=await fetch(DIAGNOSTIC_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({
+        action:"tu_monitoring",
+        id_token:token,
+        tahun:2026
+      }),
+      cache:"no-store"
+    });
+
+    const elapsed=(performance.now()-started)/1000;
+    const raw=await res.text();
+
+    let data;
+    try{
+      data=JSON.parse(raw);
+    }catch(e){
+      throw new Error("HTTP "+res.status+" — response bukan JSON: "+raw.slice(0,1000));
+    }
+
+    const d=data?.diagnostic||{};
+    const up=(Number(d.upstream_ms||0)/1000);
+    const over=(Number(d.worker_overhead_ms||0)/1000);
+
+    document.getElementById("http").textContent=String(res.status);
+    document.getElementById("upstream").textContent=up.toFixed(2)+" detik";
+    document.getElementById("overhead").textContent=over.toFixed(2)+" detik";
+
+    output.textContent=JSON.stringify({
+      jalur:"GitHub Pages → Worker TU aktif untuk login → Diagnostic Worker → TARGET lama",
+      action:"tu_monitoring",
+      tahun:2026,
+      http:res.status,
+      client_elapsed_detik:Number(elapsed.toFixed(2)),
+      diagnostic:data
+    },null,2);
+
+  }catch(error){
+    const elapsed=(performance.now()-started)/1000;
+    output.textContent=JSON.stringify({
+      ok:false,
+      error:error?.message||String(error),
+      client_elapsed_detik:Number(elapsed.toFixed(2))
+    },null,2);
+  }finally{
+    btn.disabled=false;
+  }
+});
+})();
+</script>
+
+</body>
+</html>
