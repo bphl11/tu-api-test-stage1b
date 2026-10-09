@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TU API — Read-Only Endpoints V5 Staging</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f6f8;color:#202938;margin:0}
+.wrap{max-width:1050px;margin:30px auto;padding:20px}
+.card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:24px;margin-bottom:18px}
+h1,h2{margin-top:0}.muted{color:#667085}.note{background:#eff6ff;border:1px solid #bfdbfe;padding:12px;border-radius:9px;color:#1e3a8a}
+.status{display:inline-block;padding:6px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:700}
+.status.ok{background:#dcfce7;color:#166534}.status.bad{background:#fee2e2;color:#991b1b}
+button{padding:12px 16px;border:0;border-radius:9px;background:#3158a6;color:#fff;font-weight:700;cursor:pointer;margin-right:8px}button:disabled{opacity:.5}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.metric{padding:12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px}
+.metric b{display:block;font-size:18px;margin-top:4px}
+table{width:100%;border-collapse:collapse;margin-top:18px}th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:left}th{background:#f8fafc}
+pre{background:#111827;color:#e5e7eb;padding:16px;border-radius:10px;min-height:240px;white-space:pre-wrap;overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+<h1>TU API — Read-Only Endpoints V5 Staging</h1>
+<p class="muted">Pengujian GET-read melalui POST client terhadap Worker V5 Staging. Tidak ada SAVE, UPDATE, DELETE, atau perubahan data.</p>
+<div id="googleSignInButton"></div>
+<div id="loginStatus" class="status" style="margin-top:10px">Menunggu login...</div>
+<div id="loginInfo" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div id="testCard" class="card" style="display:none">
+<h2>Uji 3 endpoint read-only</h2>
+<div class="note"><b>Target uji:</b> Tahun 2026, ID TU <b>TU-2026-000356</b>. Semua request memakai Worker V5 Staging → Apps Script V5.</div>
+<div style="margin-top:16px">
+<button id="btnRun">JALANKAN 3 TEST</button>
+<button id="btnReal">Realisasi</button>
+<button id="btnRpd">RPD</button>
+<button id="btnRev">Revisi</button>
+</div>
+<table>
+<thead><tr><th>Endpoint</th><th>HTTP</th><th>Waktu</th><th>Hasil</th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+
+<div class="card">
+<h2>Hasil</h2>
+<pre id="output">Belum ada pengujian.</pre>
+</div>
+</div>
+
+<script src="assets/js/tu-config.js"></script>
+<script>
+TU_CONFIG.TU_API_URL="https://tu-p3hpl-proxy-v5-staging.asterales-niza.workers.dev/tu";
+</script>
+<script src="assets/js/tu-api.js"></script>
+<script src="assets/js/tu-auth.js"></script>
+
+<script>
+(function(){
+const testCard=document.getElementById("testCard");
+const loginStatus=document.getElementById("loginStatus");
+const loginInfo=document.getElementById("loginInfo");
+const rows=document.getElementById("rows");
+const output=document.getElementById("output");
+const id="TU-2026-000356";
+const tahun=2026;
+
+function showLoggedIn(user){
+  loginStatus.textContent="LOGIN BERHASIL — OPERATOR";
+  loginStatus.className="status ok";
+  loginInfo.textContent=(user?.name||"")+" · "+(user?.email||"");
+  testCard.style.display="";
+}
+window.tuHandleBootstrap=function(data){
+  if(data?.user) showLoggedIn(data.user);
+};
+window.tuInitData=function(){
+  const u=typeof tuGetStoredUser==="function"?tuGetStoredUser():null;
+  if(u?.email) showLoggedIn(u);
+};
+
+function addRow(name,http,seconds,ok){
+  const tr=document.createElement("tr");
+  tr.innerHTML="<td>"+name+"</td><td>"+http+"</td><td>"+seconds.toFixed(2)+" dtk</td><td><span class='status "+(ok?"ok":"bad")+"'>"+(ok?"LULUS":"GAGAL")+"</span></td>";
+  rows.appendChild(tr);
+}
+
+function safeResult(name,data){
+  if(name==="tu_realisasi_list"){
+    const d=Array.isArray(data?.data)?data.data:[];
+    const target=d.find(x=>x.id_realisasi_tu==="RTU-2026-000001");
+    return {
+      jumlah:d.length,
+      record_target:target?{
+        id_realisasi_tu:target.id_realisasi_tu,
+        id_tu:target.id_tu,
+        tahun:target.tahun,
+        bulan_realisasi:target.bulan_realisasi,
+        nominal_realisasi:target.nominal_realisasi,
+        keterangan:target.keterangan,
+        status:target.status
+      }:null
+    };
+  }
+
+  if(name==="tu_rpd_list"){
+    const d=Array.isArray(data?.data)?data.data:[];
+    const target=d.find(x=>x.id_tu===id);
+    return {
+      jumlah:d.length,
+      record_target:target?{
+        id_rpd_tu:target.id_rpd_tu,
+        id_tu:target.id_tu,
+        tahun:target.tahun,
+        pagu_revisi:target.pagu_revisi,
+        realisasi_final:target.realisasi_final,
+        dana_tersedia:target.dana_tersedia,
+        total_rpd:target.total_rpd,
+        sisa_rpd:target.sisa_rpd
+      }:null
+    };
+  }
+
+  if(name==="tu_revisi_list"){
+    const d=Array.isArray(data?.data)?data.data:[];
+    const target=d.find(x=>x.id_revisi_tu==="REV-TU-2026-000001");
+    return {
+      jumlah:d.length,
+      record_target:target?{
+        id_revisi_tu:target.id_revisi_tu,
+        id_tu:target.id_tu,
+        tahun:target.tahun,
+        pagu_lama:target.pagu_lama,
+        pagu_baru:target.pagu_baru,
+        selisih_pagu:target.selisih_pagu,
+        jenis_revisi:target.jenis_revisi,
+        status:target.status
+      }:null
+    };
+  }
+
+  return {};
+}
+
+function validate(name,data){
+  if(!data?.ok) return false;
+
+  if(name==="tu_realisasi_list"){
+    const d=Array.isArray(data.data)?data.data:[];
+    const x=d.find(r=>r.id_realisasi_tu==="RTU-2026-000001");
+    return !!x &&
+      x.id_tu===id &&
+      Number(x.tahun)===tahun &&
+      Number(x.nominal_realisasi)===100 &&
+      Number(x.bulan_realisasi)===10 &&
+      x.status==="NONAKTIF";
+  }
+
+  if(name==="tu_rpd_list"){
+    const x=(data.data||[]).find(r=>r.id_tu===id);
+    return !!x &&
+      Number(x.tahun)===tahun &&
+      Number(x.pagu_revisi)===600 &&
+      Number(x.realisasi_final)===0 &&
+      Number(x.dana_tersedia)===600 &&
+      Number(x.total_rpd)===100 &&
+      Number(x.sisa_rpd)===500;
+  }
+
+  if(name==="tu_revisi_list"){
+    const x=(data.data||[]).find(r=>r.id_revisi_tu==="REV-TU-2026-000001");
+    return !!x &&
+      x.id_tu===id &&
+      Number(x.tahun)===tahun &&
+      Number(x.pagu_lama)===500 &&
+      Number(x.pagu_baru)===600 &&
+      Number(x.selisih_pagu)===100 &&
+      x.status==="AKTIF";
+  }
+
+  return false;
+}
+
+async function runOne(name,payload){
+  const started=performance.now();
+  try{
+    const data=await tuApiRequest(name,payload);
+    const seconds=(performance.now()-started)/1000;
+    const ok=validate(name,data);
+    addRow(name,200,seconds,ok);
+    return {
+      endpoint:name,
+      http:200,
+      waktu_detik:Number(seconds.toFixed(2)),
+      lulus:ok,
+      hasil:safeResult(name,data)
+    };
+  }catch(e){
+    const seconds=(performance.now()-started)/1000;
+    addRow(name,0,seconds,false);
+    return {
+      endpoint:name,
+      http:0,
+      waktu_detik:Number(seconds.toFixed(2)),
+      lulus:false,
+      error:e?.message||String(e)
+    };
+  }
+}
+
+async function runAll(){
+  const buttons=[...document.querySelectorAll("button")];
+  buttons.forEach(b=>b.disabled=true);
+  rows.innerHTML="";
+  output.textContent="Menjalankan 3 endpoint read-only...";
+  try{
+    const results=[];
+    results.push(await runOne("tu_realisasi_list",{tahun,id_tu:id}));
+    results.push(await runOne("tu_rpd_list",{tahun,id_tu:id}));
+    results.push(await runOne("tu_revisi_list",{tahun,id_tu:id}));
+    const all=results.every(x=>x.lulus);
+    output.textContent=JSON.stringify({
+      ok:all,
+      mode:"READ-ONLY",
+      worker:"tu-p3hpl-proxy-v5-staging",
+      tahun,
+      id_tu:id,
+      results
+    },null,2);
+  }finally{
+    buttons.forEach(b=>b.disabled=false);
+  }
+}
+
+document.getElementById("btnRun").onclick=runAll;
+document.getElementById("btnReal").onclick=async()=>{rows.innerHTML="";output.textContent=JSON.stringify(await runOne("tu_realisasi_list",{tahun,id_tu:id}),null,2)};
+document.getElementById("btnRpd").onclick=async()=>{rows.innerHTML="";output.textContent=JSON.stringify(await runOne("tu_rpd_list",{tahun,id_tu:id}),null,2)};
+document.getElementById("btnRev").onclick=async()=>{rows.innerHTML="";output.textContent=JSON.stringify(await runOne("tu_revisi_list",{tahun,id_tu:id}),null,2)};
+})();
+</script>
+</body>
+</html>
