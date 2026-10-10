@@ -1,109 +1,112 @@
-# TU API — Baseline Final V5 Staging
+# TU API — FINAL PRODUCTION STABILITY BASELINE
 
-Tanggal: 2026-10-09
-Status: STAGING LULUS — PRODUKSI BELUM DIUBAH
+Tanggal: 2026-10-10
+Status: **PRODUKSI STABIL — TARGET V5 AKTIF**
 
-## Scope
-Baseline ini mencatat hasil pengujian read-only sebelum perubahan TARGET pada Worker produksi.
+## 1. Konfigurasi final
 
-## Deployment
 - Worker produksi: `tu-p3hpl-proxy`
+- Worker produksi aktif: **versi/hash 4e82247a** (sesuai deployment yang diuji)
+- Endpoint produksi: `https://tu-p3hpl-proxy.asterales-niza.workers.dev/tu`
+- Target Apps Script aktif: deployment **TU API V5**
 - Worker staging V5: `tu-p3hpl-proxy-v5-staging`
-- Apps Script V5 staging: deployment TU API — STAGING OPTIMIZED V5 — monitoring only
-- Worker produksi saat ini tetap menggunakan TARGET lama.
-- Worker V5 staging menggunakan TARGET Apps Script V5.
+- Worker produksi telah dialihkan dari TARGET lama ke TARGET Apps Script V5.
+- Tidak ada perubahan pada endpoint `/tu`, CORS, format request, atau data TU selain pergantian TARGET.
 
-## TARGET
-TARGET lama (Worker produksi):
-`https://script.google.com/macros/s/AKfycbF1gDWXYubrCZEaJ1bccaJpTLJSv4DULNmqk-N3IfsxS1UfnTC9T73qhXqNvBJkmSrdw/exec`
+## 2. Hasil utama produksi
 
-TARGET V5 (Worker staging):
-`https://script.google.com/macros/s/AKfycbLfDwll2EOs6fbUTZ3a7asENik4cjes_WCRqdCwN5gVTH5B5wM5l60NOIZOIbr7JjnjQ/exec`
+### tu_monitoring FULL 2026
+- HTTP: **200**
+- Waktu: **4,94 detik**
+- Jumlah detail: **192**
+- `ok=true`
+- Struktur response tetap tersedia.
 
-## Backend V5 direct
-- tu_bootstrap: ~5.34 detik, HTTP 200
-- tu_monitoring FILTER TU-2026-000356: ~4.70–5.96 detik, HTTP 200
-- tu_monitoring FULL 2026: ~4.01 detik, HTTP 200, 192 detail
-- Data acuan filter:
-  - Pagu Revisi: 600
-  - Realisasi Final: 0
-  - Total RPD: 100
-  - Sisa RPD: 500
+### tu_monitoring FILTER — TU-2026-000356
+- HTTP: **200**
+- Data sesuai baseline:
+  - Pagu Revisi: **600**
+  - Realisasi Final: **0**
+  - Total RPD: **100**
+  - Sisa RPD: **500**
 
-## Worker V5 staging
-- tu_monitoring FULL 2026: 3.89 detik
-- HTTP: 200
-- Detail: 192
-- Response: ok=true
-
-## Security response check
-- tu_bootstrap: HTTP 200, ~4.02 detik, sensitive fields: none
-- tu_monitoring FILTER: HTTP 200, ~4.65 detik, sensitive fields: none
-- Tidak ditemukan field id_token/access_token/refresh_token/token pada response yang diperiksa.
-- Nilai token tidak dicatat dalam baseline.
-
-## Read-only endpoints via Worker V5 staging
-Target: Tahun 2026, ID TU TU-2026-000356
+## 3. Read-only endpoint produksi
 
 ### tu_realisasi_list
-- HTTP 200
-- 2.90 detik
-- LULUS
-- RTU-2026-000001
-- Nominal 100
-- Bulan 10
-- Status NONAKTIF
+- HTTP: **200**
+- Waktu: **2,12 detik**
+- Status: **LULUS**
+- Record acuan: `RTU-2026-000001`
+- Nominal: **100**
+- Bulan: **10**
+- Status data: **NONAKTIF**
 
 ### tu_rpd_list
-- HTTP 200
-- 4.41 detik
-- LULUS
-- Pagu Revisi 600
-- Realisasi Final 0
-- Dana Tersedia 600
-- Total RPD 100
-- Sisa RPD 500
+- HTTP: **200**
+- Waktu: **2,66 detik**
+- Status: **LULUS**
+- Pagu Revisi: **600**
+- Realisasi Final: **0**
+- Dana Tersedia: **600**
+- Total RPD: **100**
+- Sisa RPD: **500**
 
 ### tu_revisi_list
-- HTTP 200
-- 2.37 detik
-- LULUS
-- REV-TU-2026-000001
-- Pagu Lama 500
-- Pagu Baru 600
-- Selisih 100
-- Status AKTIF
+- HTTP: **200**
+- Waktu: **2,66 detik**
+- Status: **LULUS**
+- Record acuan: `REV-TU-2026-000001`
+- Pagu Lama: **500**
+- Pagu Baru: **600**
+- Selisih: **100**
+- Status: **AKTIF**
 
-## Performance diagnosis
-- Worker produksi sebelumnya: tu_monitoring FULL sekitar 101.57–120.45 detik, HTTP 200.
-- Worker produksi / jalur lama berhasil mengembalikan 192 detail tetapi lambat.
-- Worker V5 staging + Apps Script V5: FULL 3.89 detik dan 192 detail.
-- Kesimpulan staging: V5 mempertahankan hasil dan memangkas bottleneck monitoring FULL.
+## 4. Security response
 
-## Production change gate
-JANGAN ubah Worker produksi sampai baseline ini tersimpan.
+Pemeriksaan langsung pada Worker produksi:
+- `tu_bootstrap`: HTTP **200**, sensitive fields **TIDAK TERDETEKSI**
+- `tu_monitoring`: HTTP **200**, sensitive fields **TIDAK TERDETEKSI**
+- Tidak ditemukan field `id_token`, `access_token`, `refresh_token`, atau `token` pada response yang diperiksa.
+- Nilai token tidak disimpan dalam baseline.
 
-Perubahan produksi yang direncanakan:
-- Tidak mengubah Worker logic.
-- Tidak mengubah CORS.
-- Tidak mengubah endpoint /tu.
-- Tidak mengubah data TU.
-- Hanya mengganti konstanta TARGET pada Worker produksi dari TARGET lama ke TARGET V5.
+## 5. Perbandingan sebelum dan sesudah
 
-Setelah perubahan produksi, wajib uji:
-1. tu_monitoring FILTER TU-2026-000356
-2. tu_monitoring FULL 2026
-3. tu_realisasi_list
-4. tu_rpd_list
-5. tu_revisi_list
+### Sebelum
+Worker produksi + TARGET lama:
+- `tu_monitoring FULL`: sekitar **101,57–120,45 detik**
+- Pada pengujian sebelumnya dapat mengalami HTTP 524.
 
-Kriteria minimum:
-- HTTP 200
-- FULL = 192 detail
-- Filter = 600 / 0 / 100 / 500
-- Read-only endpoints tetap LULUS
-- Tidak ada sensitive token field pada response.
+### Sesudah
+Worker produksi + TARGET V5:
+- `tu_monitoring FULL`: **4,94 detik**
+- HTTP **200**
+- **192 detail**
 
-## Safety
-- Jangan mencatat atau menyimpan id_token.
-- Worker produksi tetap dianggap belum berubah sampai deployment produksi benar-benar diperbarui.
+Perubahan menunjukkan bottleneck utama berhasil diatasi oleh backend V5 dan jalur produksi sekarang kembali berada pada kisaran beberapa detik.
+
+## 6. Status akhir
+
+- Backend V5: **LULUS**
+- Worker V5 staging: **LULUS**
+- Worker produksi → Apps Script V5: **LULUS**
+- Monitoring FULL 192 detail: **LULUS**
+- Monitoring FILTER: **LULUS**
+- Realisasi list: **LULUS**
+- RPD list: **LULUS**
+- Revisi list: **LULUS**
+- Security response: **LULUS**
+
+## 7. Kebijakan operasional setelah go-live
+
+1. **Jangan mengubah kode Worker produksi** kecuali ada kebutuhan yang terdokumentasi.
+2. **Jangan menjalankan SAVE/UPDATE/DELETE untuk pengujian rutin.**
+3. Pengujian rutin gunakan endpoint **read-only**.
+4. Jangan mencatat, menyimpan, atau menampilkan `id_token`.
+5. Simpan Worker produksi saat ini sebagai **versi stabil/reference version**.
+6. Setiap perubahan berikutnya lakukan melalui **staging terlebih dahulu**, lalu uji, dokumentasikan, dan baru pertimbangkan produksi.
+7. Jangan menghapus baseline ini; gunakan sebagai pembanding jika performa kembali menurun.
+
+## 8. Catatan
+
+Baseline ini menggantikan status sebelumnya yang masih menyatakan produksi belum diubah. Dokumen ini menjadi acuan operasional setelah migrasi TARGET ke Apps Script V5 selesai.
+
