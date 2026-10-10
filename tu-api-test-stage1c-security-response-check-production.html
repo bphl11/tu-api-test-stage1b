@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TU API — Security Response Check — Worker Produksi</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f6f8;color:#202938;margin:0}
+.wrap{max-width:1000px;margin:30px auto;padding:20px}
+.card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:24px;margin-bottom:18px}
+h1,h2{margin-top:0}.muted{color:#667085}
+.status{display:inline-block;padding:6px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:700}
+.ok{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}
+button{padding:12px 16px;border:0;border-radius:9px;background:#3158a6;color:#fff;font-weight:700;cursor:pointer}button:disabled{opacity:.5}
+pre{background:#111827;color:#e5e7eb;padding:16px;border-radius:10px;min-height:260px;white-space:pre-wrap;overflow:auto}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.metric{padding:12px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px}
+.metric b{display:block;font-size:18px;margin-top:4px}
+.note{margin-top:14px;padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;color:#1e3a8a}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+<h1>TU API — Security Response Check — Worker Produksi</h1>
+<p class="muted">Read-only. Menguji apakah response TU mengandung field token sensitif. Nilai token tidak pernah ditampilkan.</p>
+<div id="googleSignInButton"></div>
+<div id="loginStatus" class="status" style="margin-top:10px">Menunggu login...</div>
+<div id="loginInfo" class="muted" style="margin-top:8px"></div>
+</div>
+
+<div id="checkCard" class="card" style="display:none">
+<h2>Security check</h2>
+<div class="note"><b>Hanya pemeriksaan response.</b> Tidak ada SAVE, UPDATE, DELETE, atau perubahan data.</div>
+<button id="btnCheck" style="margin-top:14px">PERIKSA RESPONSE TU</button>
+<div class="grid">
+<div class="metric">HTTP<b id="http">-</b></div>
+<div class="metric">Endpoint<b id="endpoint">-</b></div>
+<div class="metric">Sensitive field<b id="sensitive">-</b></div>
+</div>
+</div>
+
+<div class="card">
+<h2>Hasil</h2>
+<pre id="output">Belum ada pemeriksaan.</pre>
+</div>
+</div>
+
+<script src="assets/js/tu-config.js"></script>
+<script>
+TU_CONFIG.TU_API_URL="https://tu-p3hpl-proxy.asterales-niza.workers.dev/tu";
+</script>
+<script src="assets/js/tu-api.js"></script>
+<script src="assets/js/tu-auth.js"></script>
+
+<script>
+(function(){
+const checkCard=document.getElementById("checkCard");
+const status=document.getElementById("loginStatus");
+const info=document.getElementById("loginInfo");
+const output=document.getElementById("output");
+
+function redactScan(value,path,out){
+  if(Array.isArray(value)){
+    value.forEach((v,i)=>redactScan(v,path+"["+i+"]",out));
+    return;
+  }
+  if(value && typeof value==="object"){
+    Object.entries(value).forEach(([k,v])=>{
+      const p=path+"."+k;
+      const key=String(k).toLowerCase();
+      if(["id_token","access_token","refresh_token","token"].includes(key)){
+        out.push({path:p,type:typeof v});
+      }else{
+        redactScan(v,p,out);
+      }
+    });
+  }
+}
+
+window.tuShowLogin=function(){
+  checkCard.style.display="none";
+};
+window.tuShowMessage=function(message){
+  info.textContent=message||"";
+};
+window.tuHandleBootstrap=async function(data){
+  if(data?.user){
+    document.getElementById("tuLoginPanel")?.style;
+    status.textContent="LOGIN BERHASIL — OPERATOR";
+    status.className="status ok";
+    info.textContent=(data.user.name||"")+" · "+(data.user.email||"");
+    checkCard.style.display="";
+  }
+};
+window.tuInitData=function(){
+  const user=typeof tuGetStoredUser==="function"?tuGetStoredUser():null;
+  if(user){
+    status.textContent="LOGIN TERSIMPAN";
+    status.className="status ok";
+    info.textContent=(user.name||"")+" · "+(user.email||"");
+    checkCard.style.display="";
+  }
+};
+
+document.getElementById("btnCheck").onclick=async function(){
+  this.disabled=true;
+  output.textContent="Memeriksa tu_bootstrap dan tu_monitoring FILTER. Nilai token tidak ditampilkan.";
+  document.getElementById("http").textContent="-";
+  document.getElementById("endpoint").textContent="-";
+  document.getElementById("sensitive").textContent="-";
+
+  const token=typeof tuGetIdToken==="function"?tuGetIdToken():"";
+  if(!token){
+    output.textContent="Sesi login TU tidak ditemukan. Silakan login kembali.";
+    this.disabled=false;
+    return;
+  }
+
+  const checks=[
+    {name:"tu_bootstrap",payload:{action:"tu_bootstrap",id_token:token,tahun:2026}},
+    {name:"tu_monitoring",payload:{action:"tu_monitoring",id_token:token,tahun:2026,id_tu:"TU-2026-000356"}}
+  ];
+
+  const results=[];
+  try{
+    for(const item of checks){
+      const started=performance.now();
+      const res=await fetch(TU_CONFIG.TU_API_URL,{
+        method:"POST",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify(item.payload),
+        redirect:"follow",
+        credentials:"omit",
+        cache:"no-store"
+      });
+      const elapsed=(performance.now()-started)/1000;
+      const raw=await res.text();
+      let data=null;
+      try{data=JSON.parse(raw)}catch(e){}
+
+      const findings=[];
+      if(data)redactScan(data,"$",findings);
+
+      results.push({
+        endpoint:item.name,
+        http:res.status,
+        waktu_detik:Number(elapsed.toFixed(2)),
+        sensitive_fields_found:findings
+      });
+
+      // Tampilkan status ringkas saja; jangan pernah tampilkan response mentah.
+      document.getElementById("http").textContent=String(res.status);
+      document.getElementById("endpoint").textContent=item.name;
+      document.getElementById("sensitive").textContent=findings.length?"TERDETEKSI":"TIDAK TERDETEKSI";
+    }
+
+    const allFindings=results.flatMap(r=>r.sensitive_fields_found);
+    const safeSummary={
+      ok:allFindings.length===0,
+      checked_at:new Date().toISOString(),
+      rule:"Tidak menampilkan nilai token.",
+      results,
+      conclusion:allFindings.length===0
+        ?"Tidak ditemukan field token sensitif pada response yang diperiksa."
+        :"Ditemukan field token sensitif pada response. Nilai token sengaja disembunyikan."
+    };
+    output.textContent=JSON.stringify(safeSummary,null,2);
+
+  }catch(e){
+    output.textContent=JSON.stringify({
+      ok:false,
+      error:e?.message||String(e),
+      note:"Tidak ada nilai token yang ditampilkan."
+    },null,2);
+  }finally{
+    this.disabled=false;
+  }
+};
+})();
+</script>
+</body>
+</html>
