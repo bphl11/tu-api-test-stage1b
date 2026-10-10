@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TU API — 3 Endpoint Read-Only V5 Staging</title>
+<title>TU API — 3 Endpoint Read-Only PRODUKSI</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 body{font-family:Arial,sans-serif;background:#f4f6f8;color:#202938;margin:0}
@@ -220,7 +220,7 @@ async function runAll(){
     output.textContent=JSON.stringify({
       ok:results.every(x=>x.lulus),
       mode:"READ-ONLY",
-      worker:"tu-p3hpl-proxy-v5-staging",
+      worker:"tu-p3hpl-proxy",
       target:"Apps Script V5",
       tahun,
       id_tu,
